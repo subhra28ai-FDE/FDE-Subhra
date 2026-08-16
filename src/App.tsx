@@ -22,6 +22,7 @@ import { ScoreBreakdownCard } from './components/ScoreBreakdownCard';
 import { EvidenceMatrix } from './components/EvidenceMatrix';
 import { CandidateCompareMatrix } from './components/CandidateCompareMatrix';
 import { HumanReviewSection } from './components/HumanReviewSection';
+import { AppFeedbackSection } from './components/AppFeedbackSection';
 import { SkillsTaxonomyModal } from './components/SkillsTaxonomyModal';
 import { WeightsConfigModal } from './components/WeightsConfigModal';
 
@@ -359,6 +360,9 @@ export default function App() {
             onSaveFeedback={handleSaveFeedback}
           />
         )}
+
+        {/* User & Recruiter App Reviews & Feedback Section */}
+        <AppFeedbackSection />
 
       </main>
 

@@ -7,7 +7,8 @@ import {
   Eye, 
   Database, 
   SlidersHorizontal,
-  FileCheck
+  FileCheck,
+  MessageSquareHeart
 } from 'lucide-react';
 import { SamplePreset } from '../types';
 
@@ -109,6 +110,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
               <span className="hidden sm:inline">Weights</span>
+            </button>
+
+            {/* Recruiter & User Feedback Link */}
+            <button
+              id="nav-user-feedback-link"
+              onClick={() => {
+                const el = document.getElementById('app-user-reviews-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-slate-700 font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Read or leave user & recruiter reviews for this app"
+            >
+              <MessageSquareHeart className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">App Reviews</span>
             </button>
 
             {/* Human Audit Badge / Quick Review Link */}
