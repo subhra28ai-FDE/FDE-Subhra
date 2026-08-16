@@ -10,9 +10,12 @@ import {
   FileText, 
   Edit3, 
   RefreshCw,
-  Tag
+  Tag,
+  Upload,
+  CheckCircle2
 } from 'lucide-react';
 import { JobDescriptionData } from '../types';
+import { extractTextFromFile } from '../utils/fileParser';
 
 interface JDSectionProps {
   jd: JobDescriptionData;
@@ -30,11 +33,29 @@ export const JDSection: React.FC<JDSectionProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [rawTextInput, setRawTextInput] = useState(jd.rawText || '');
   const [activeTab, setActiveTab] = useState<'structured' | 'raw'>('structured');
+  const [fileStatus, setFileStatus] = useState<string | null>(null);
 
   const handleApplyRawText = async () => {
     if (!rawTextInput.trim()) return;
     await onParseRawJD(rawTextInput);
     setIsEditing(false);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileStatus(`Reading ${file.name}...`);
+    try {
+      const text = await extractTextFromFile(file);
+      if (text) {
+        setRawTextInput(text);
+        setFileStatus(`✓ Loaded ${file.name} (${text.length.toLocaleString()} chars)`);
+      } else {
+        setFileStatus('Could not read text from file.');
+      }
+    } catch (err: any) {
+      setFileStatus(`Error reading file: ${err.message}`);
+    }
   };
 
   return (
@@ -103,12 +124,33 @@ export const JDSection: React.FC<JDSectionProps> = ({
       {/* Main Content Area */}
       {activeTab === 'raw' || isEditing ? (
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-indigo-400" />
-              Job Description Text (Paste or upload raw text):
+              Job Description Text (Paste or upload Word / PDF / TXT):
             </label>
-            <span className="text-[11px] text-slate-400">Gemini 3.7 auto-extracts requirements</span>
+            <div className="flex items-center space-x-2">
+              <input
+                type="file"
+                id="jd-file-upload-input"
+                accept=".docx,.doc,.pdf,.txt,.md,.rtf"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <label
+                htmlFor="jd-file-upload-input"
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 font-medium flex items-center gap-1 cursor-pointer transition-all"
+              >
+                <Upload className="w-3 h-3" />
+                <span>Upload File (.docx, .pdf, .txt)</span>
+              </label>
+              {fileStatus && (
+                <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  {fileStatus}
+                </span>
+              )}
+            </div>
           </div>
 
           <textarea

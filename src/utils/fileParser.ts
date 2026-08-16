@@ -1,4 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore
+import mammoth from 'mammoth';
 import { ResumeData, JobDescriptionData } from '../types';
 import { SKILLS_MASTER } from '../data/skillsMaster';
 
@@ -12,12 +14,76 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Extracts text from an uploaded file (PDF, TXT, MD, JSON, DOCX/DOC, RTF)
+ * Extracts printable ASCII / UTF text from binary buffers (for legacy .doc or unzipped streams)
+ */
+function extractPrintableTextFromBuffer(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let result = '';
+  let currentRun = '';
+
+  for (let i = 0; i < bytes.length; i++) {
+    const code = bytes[i];
+    // Printable ASCII or newline/tab
+    if ((code >= 32 && code <= 126) || code === 10 || code === 13 || code === 9) {
+      currentRun += String.fromCharCode(code);
+    } else {
+      if (currentRun.length >= 4) {
+        // Filter out XML tags and binary noise
+        const cleaned = currentRun.replace(/<[^>]*>/g, ' ').trim();
+        if (cleaned.length > 2 && !/^(pk|xml|rels|schemas|word|content_types)/i.test(cleaned)) {
+          result += cleaned + '\n';
+        }
+      }
+      currentRun = '';
+    }
+  }
+  if (currentRun.length >= 4) {
+    result += currentRun;
+  }
+  return result;
+}
+
+/**
+ * Extracts text from an uploaded file (DOCX, DOC, PDF, TXT, MD, JSON, RTF)
  */
 export async function extractTextFromFile(file: File): Promise<string> {
   const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
 
-  // 1. PDF File extraction
+  // 1. DOCX (Word Document XML Package)
+  if (
+    fileExt === 'docx' ||
+    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      if (result && result.value && result.value.trim().length > 10) {
+        return result.value.trim();
+      }
+    } catch (docxErr) {
+      console.warn('Mammoth DOCX parsing failed, trying fallback binary extract:', docxErr);
+      const arrayBuffer = await file.arrayBuffer();
+      const extracted = extractPrintableTextFromBuffer(arrayBuffer);
+      if (extracted.trim().length > 20) {
+        return extracted.trim();
+      }
+    }
+  }
+
+  // 2. Legacy DOC (Word 97-2004) or RTF
+  if (fileExt === 'doc' || file.type === 'application/msword' || fileExt === 'rtf') {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const extracted = extractPrintableTextFromBuffer(arrayBuffer);
+      if (extracted.trim().length > 20) {
+        return extracted.trim();
+      }
+    } catch (docErr) {
+      console.warn('Legacy DOC extraction error:', docErr);
+    }
+  }
+
+  // 3. PDF File extraction
   if (fileExt === 'pdf' || file.type === 'application/pdf') {
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -41,7 +107,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
     }
   }
 
-  // 2. Standard Text/Markdown/JSON/Code files
+  // 4. Standard Text/Markdown/JSON/Code files
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event) => {
