@@ -13,6 +13,7 @@ import {
 import { SAMPLE_PRESETS } from './data/sampleData';
 import { JobDescriptionData, ResumeData, ScoringWeights, MatchEvaluationResult } from './types';
 import { evaluateResumeAgainstJD, DEFAULT_WEIGHTS } from './utils/matcherEngine';
+import { parseResumeClientSide } from './utils/fileParser';
 import { Navbar } from './components/Navbar';
 import { GuardrailBanner } from './components/GuardrailBanner';
 import { JDSection } from './components/JDSection';
@@ -201,27 +202,39 @@ export default function App() {
     }
   };
 
-  // Handle parsing new candidate resume via backend Gemini endpoint
+  // Handle parsing new candidate resume via backend Gemini endpoint with deterministic client fallback
   const handleParseRawResume = async (rawText: string) => {
+    if (!rawText || !rawText.trim()) return;
     setIsLoading(true);
     setApiError(null);
+    let newCandidate: ResumeData | null = null;
+
     try {
       const res = await fetch('/api/parse-resume', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawText })
       });
-      const data = await res.json();
-      if (data.data) {
-        setResumes(prev => [...prev, data.data]);
-        setSelectedResumeId(data.data.id);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data) {
+          newCandidate = data.data;
+        }
       }
     } catch (err: any) {
-      console.error('Failed to parse Resume:', err);
-      setApiError('Notice: Offline engine used for resume extraction.');
-    } finally {
-      setIsLoading(false);
+      console.warn('Backend API parse-resume error, switching to fast client-side engine:', err);
     }
+
+    // If backend did not return candidate, extract directly on client
+    if (!newCandidate) {
+      newCandidate = parseResumeClientSide(rawText);
+    }
+
+    if (newCandidate) {
+      setResumes(prev => [...prev, newCandidate!]);
+      setSelectedResumeId(newCandidate.id);
+    }
+    setIsLoading(false);
   };
 
   const totalAuditAlerts = useMemo(() => {

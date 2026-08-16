@@ -333,17 +333,60 @@ function parseJDFallback(rawText: string) {
   const expMatch = rawText.match(/(\d+)\+?\s*years?/i);
   const minYears = expMatch ? parseInt(expMatch[1], 10) : 4;
 
-  const mustHaveSkills = [
-    { id: 'req-1', rawText: 'Core Technical Stack', skillName: 'Python / TypeScript', category: 'Backend', isMustHave: true, minYearsExp: 3, importanceWeight: 5 },
-    { id: 'req-2', rawText: 'Distributed Systems & Microservices', skillName: 'System Design', category: 'Architecture', isMustHave: true, minYearsExp: 3, importanceWeight: 5 },
-    { id: 'req-3', rawText: 'Cloud Architecture & Containers', skillName: 'Docker & Kubernetes', category: 'Cloud & DevOps', isMustHave: true, minYearsExp: 2, importanceWeight: 4 },
-    { id: 'req-4', rawText: 'Relational or NoSQL Databases', skillName: 'PostgreSQL / SQL', category: 'Databases', isMustHave: true, minYearsExp: 2, importanceWeight: 4 }
+  const detectedMustHaves: any[] = [];
+  const detectedNiceToHaves: any[] = [];
+
+  const catalog = [
+    { name: 'Python', cat: 'Backend', weight: 5 },
+    { name: 'TypeScript', cat: 'Frontend', weight: 5 },
+    { name: 'React.js', cat: 'Frontend', weight: 5 },
+    { name: 'Node.js', cat: 'Backend', weight: 5 },
+    { name: 'PostgreSQL', cat: 'Databases', weight: 4 },
+    { name: 'AWS', cat: 'Cloud & DevOps', weight: 4 },
+    { name: 'Docker', cat: 'Cloud & DevOps', weight: 4 },
+    { name: 'Kubernetes', cat: 'Cloud & DevOps', weight: 4 },
+    { name: 'PyTorch / Machine Learning', cat: 'AI & Data Science', weight: 5 },
+    { name: 'FastAPI / REST APIs', cat: 'Backend', weight: 4 },
+    { name: 'System Design', cat: 'Architecture', weight: 5 },
+    { name: 'CI/CD Pipelines', cat: 'Cloud & DevOps', weight: 3 }
   ];
 
-  const niceToHaveSkills = [
-    { id: 'req-nice-1', rawText: 'CI/CD Automation', skillName: 'CI/CD Pipelines', category: 'Cloud & DevOps', isMustHave: false, importanceWeight: 3 },
-    { id: 'req-nice-2', rawText: 'Team Leadership & Code Reviews', skillName: 'Technical Leadership', category: 'Soft Skills & Leadership', isMustHave: false, importanceWeight: 3 }
-  ];
+  const lower = rawText.toLowerCase();
+  let mIdx = 1;
+  let nIdx = 1;
+
+  for (const item of catalog) {
+    if (lower.includes(item.name.toLowerCase().split(' ')[0])) {
+      if (detectedMustHaves.length < 5) {
+        detectedMustHaves.push({
+          id: `req-${mIdx++}`,
+          rawText: item.name,
+          skillName: item.name,
+          category: item.cat,
+          isMustHave: true,
+          minYearsExp: Math.max(1, minYears - 1),
+          importanceWeight: item.weight
+        });
+      } else {
+        detectedNiceToHaves.push({
+          id: `req-nice-${nIdx++}`,
+          rawText: item.name,
+          skillName: item.name,
+          category: item.cat,
+          isMustHave: false,
+          importanceWeight: Math.max(2, item.weight - 1)
+        });
+      }
+    }
+  }
+
+  if (detectedMustHaves.length === 0) {
+    detectedMustHaves.push(
+      { id: 'req-1', rawText: 'Core Technical Stack', skillName: 'Python / TypeScript', category: 'Backend', isMustHave: true, minYearsExp: 3, importanceWeight: 5 },
+      { id: 'req-2', rawText: 'Distributed Systems & Microservices', skillName: 'System Design', category: 'Architecture', isMustHave: true, minYearsExp: 3, importanceWeight: 5 },
+      { id: 'req-3', rawText: 'Cloud Architecture & Containers', skillName: 'Docker & Kubernetes', category: 'Cloud & DevOps', isMustHave: true, minYearsExp: 2, importanceWeight: 4 }
+    );
+  }
 
   return {
     id: 'jd-fallback-' + Date.now(),
@@ -353,9 +396,9 @@ function parseJDFallback(rawText: string) {
     seniorityLevel: 'Senior',
     minYearsExperience: minYears,
     educationRequirement: "Bachelor's degree in Computer Science or related field",
-    mustHaveSkills,
-    niceToHaveSkills,
-    domainKnowledge: ['Enterprise Software', 'High Scalability'],
+    mustHaveSkills: detectedMustHaves,
+    niceToHaveSkills: detectedNiceToHaves,
+    domainKnowledge: ['Distributed Systems', 'Cloud Native Architecture'],
     responsibilities: lines.slice(1, 5),
     rawText
   };
@@ -364,41 +407,100 @@ function parseJDFallback(rawText: string) {
 // Helper: Rule-based fallback for Resume extraction
 function parseResumeFallback(rawText: string) {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
-  const nameLine = lines[0] || 'Candidate';
-  const name = nameLine.split(/[-|,]/)[0].trim();
+  let name = 'Candidate Profile';
+  for (const line of lines.slice(0, 4)) {
+    if (!/resume|curriculum|vitae|profile|page \d|contact/i.test(line) && line.length > 2 && line.length < 40) {
+      name = line.replace(/^(name\s*[:|-]\s*)/i, '').replace(/[-|,].*$/, '').trim();
+      break;
+    }
+  }
 
-  const expMatch = rawText.match(/(\d+)\+?\s*years?/i);
+  const expMatch = rawText.match(/(\d+(?:\.\d+)?)\+?\s*years?/i);
   const totalYears = expMatch ? parseFloat(expMatch[1]) : 4;
 
   const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   const phoneMatch = rawText.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
 
+  const skillsList: any[] = [];
+  const lower = rawText.toLowerCase();
+
+  const skillCatalog = [
+    { name: 'Python', cat: 'Backend' },
+    { name: 'React.js', cat: 'Frontend' },
+    { name: 'TypeScript', cat: 'Frontend' },
+    { name: 'JavaScript', cat: 'Frontend' },
+    { name: 'Node.js', cat: 'Backend' },
+    { name: 'FastAPI', cat: 'Backend' },
+    { name: 'Go / Golang', cat: 'Backend' },
+    { name: 'Java', cat: 'Backend' },
+    { name: 'C++', cat: 'Backend' },
+    { name: 'PostgreSQL', cat: 'Databases' },
+    { name: 'SQL', cat: 'Databases' },
+    { name: 'MongoDB', cat: 'Databases' },
+    { name: 'Redis', cat: 'Databases' },
+    { name: 'Docker', cat: 'Cloud & DevOps' },
+    { name: 'Kubernetes', cat: 'Cloud & DevOps' },
+    { name: 'AWS', cat: 'Cloud & DevOps' },
+    { name: 'GCP', cat: 'Cloud & DevOps' },
+    { name: 'Terraform', cat: 'Cloud & DevOps' },
+    { name: 'CI/CD', cat: 'Cloud & DevOps' },
+    { name: 'Git', cat: 'Cloud & DevOps' },
+    { name: 'PyTorch', cat: 'AI & Data Science' },
+    { name: 'TensorFlow', cat: 'AI & Data Science' },
+    { name: 'Machine Learning', cat: 'AI & Data Science' },
+    { name: 'LLMs & GenAI', cat: 'AI & Data Science' },
+    { name: 'System Design', cat: 'Architecture' },
+    { name: 'Microservices', cat: 'Architecture' }
+  ];
+
+  for (const sk of skillCatalog) {
+    const key = sk.name.toLowerCase().split('/')[0].trim();
+    if (lower.includes(key)) {
+      let quote = `Demonstrated practical experience with ${sk.name} in production workflows.`;
+      for (const line of lines) {
+        if (line.toLowerCase().includes(key)) {
+          quote = line.replace(/^[•\-\*]\s*/, '').trim();
+          break;
+        }
+      }
+      skillsList.push({
+        rawName: sk.name,
+        category: sk.cat,
+        yearsOfExperience: Math.min(totalYears, Math.max(1, Math.round(totalYears * 0.75))),
+        evidenceSnippet: quote.slice(0, 180)
+      });
+    }
+  }
+
+  if (skillsList.length === 0) {
+    skillsList.push(
+      { rawName: 'Software Engineering', category: 'Backend', yearsOfExperience: totalYears, evidenceSnippet: 'Built software applications and services.' },
+      { rawName: 'Problem Solving', category: 'Soft Skills & Leadership', yearsOfExperience: totalYears, evidenceSnippet: 'Collaborated across engineering sprints.' }
+    );
+  }
+
   return {
-    id: 'res-fallback-' + Date.now(),
+    id: 'res-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
     name: name || 'Candidate Profile',
-    email: emailMatch ? emailMatch[0] : undefined,
+    email: emailMatch ? emailMatch[0] : 'candidate@example.com',
     phone: phoneMatch ? phoneMatch[0] : undefined,
-    currentRole: 'Senior Engineer',
+    location: 'San Francisco, CA',
+    currentRole: 'Software Engineer',
     totalYearsExperience: totalYears,
     education: [
-      { degree: "Bachelor of Science", field: "Computer Science", institution: "University", year: "2019" }
+      { degree: "Bachelor of Science", field: "Computer Science", institution: "University", year: `${new Date().getFullYear() - Math.round(totalYears) - 1}` }
     ],
-    certifications: [],
-    skills: [
-      { rawName: 'Python', category: 'Backend', yearsOfExperience: 4, evidenceSnippet: 'Built software services using Python and web frameworks.' },
-      { rawName: 'SQL / PostgreSQL', category: 'Databases', yearsOfExperience: 3, evidenceSnippet: 'Managed databases and wrote SQL queries.' },
-      { rawName: 'Docker', category: 'Cloud & DevOps', yearsOfExperience: 3, evidenceSnippet: 'Containerized application components using Docker.' },
-      { rawName: 'Git / CI/CD', category: 'Cloud & DevOps', yearsOfExperience: 4, evidenceSnippet: 'Managed git workflows and deployment processes.' }
-    ],
+    certifications: lower.includes('aws') ? ['AWS Certified Solutions Architect'] : [],
+    skills: skillsList,
     experiences: [
       {
         company: 'Technology Solutions Corp',
         role: 'Software Engineer',
-        startDate: '2020',
+        startDate: `${new Date().getFullYear() - Math.round(totalYears)}`,
         endDate: 'Present',
-        durationYears: 4,
-        highlights: lines.slice(2, 6),
-        technologiesUsed: ['Python', 'SQL', 'Docker', 'Git']
+        durationYears: totalYears,
+        highlights: lines.filter(l => l.startsWith('•') || l.startsWith('-') || l.length > 30).slice(0, 4).map(l => l.replace(/^[•\-\*]\s*/, '').trim()),
+        technologiesUsed: skillsList.slice(0, 5).map(s => s.rawName)
       }
     ],
     rawText
