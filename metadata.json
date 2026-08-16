@@ -1,0 +1,6 @@
+{
+  "name": "AI Resume & JD Matcher",
+  "description": "Enterprise AI-powered Resume and Job Description matcher with Kaggle Skills Master normalization, deterministic scoring, explainable evidence mapping, and human-in-the-loop audit guardrails.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
