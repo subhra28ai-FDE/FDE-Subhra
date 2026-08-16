@@ -111,21 +111,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">Weights</span>
             </button>
 
-            {/* Human Audit Badge */}
-            {auditAlertsCount > 0 ? (
-              <div 
-                className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 font-semibold flex items-center gap-1 animate-pulse"
-                title="Unverified claim detected: Human audit protocol triggered."
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-rose-400" />
-                <span>{auditAlertsCount} Audit Flag{auditAlertsCount > 1 ? 's' : ''}</span>
-              </div>
-            ) : (
-              <div className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium flex items-center gap-1">
-                <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="hidden md:inline">Audit Grounded</span>
-              </div>
-            )}
+            {/* Human Audit Badge / Quick Review Link */}
+            <button
+              id="nav-human-review-link"
+              onClick={() => {
+                const el = document.getElementById('human-audit-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                auditAlertsCount > 0
+                  ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 hover:bg-rose-500/30 animate-pulse'
+                  : 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/30'
+              }`}
+              title="Jump to Human Recruiter Review & Feedback Protocol section"
+            >
+              <ShieldCheck className={`w-3.5 h-3.5 ${auditAlertsCount > 0 ? 'text-rose-400' : 'text-indigo-400'}`} />
+              <span>{auditAlertsCount > 0 ? `${auditAlertsCount} Audit Flag${auditAlertsCount > 1 ? 's' : ''}` : 'Review & Audit'}</span>
+            </button>
           </div>
 
         </div>
